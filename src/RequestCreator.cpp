@@ -26,9 +26,13 @@ void RequestCreator::createAndAddRequest(const std::string &line)
     boost::split(parametersValue, line, boost::is_any_of(","));
 
     auto request = std::string();
-    addParameter(request, "from", parametersValue.at(0));
-    addParameter(request, "to", parametersValue.at(1));
-    addParameter(request, "datetime", parametersValue.at(2));
+    auto const pointFrom = parametersValue.at(0) + ";" + parametersValue.at(1);
+    auto const pointTo = parametersValue.at(2) + ";" + parametersValue.at(3);
+    addParameter(request, "from", pointFrom);
+    addParameter(request, "to", pointTo);
+    addParameter(request, "datetime", parametersValue.at(4));
+    addParameter(request, "first_section_mode", "walking");
+    addParameter(request, "last_section_mode", "car");
 
     requestList_.push_back(request);
 }

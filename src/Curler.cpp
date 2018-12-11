@@ -33,9 +33,8 @@ Curler::~Curler()
     curl_easy_cleanup(curl_);
 }
 
-std::string Curler::lauchRequest(const std::string& request)
+std::string Curler::lauchRequest(const std::string &request)
 {
-
     httpCode_ = 0;
     httpResponse_ = std::string();
 
@@ -46,11 +45,11 @@ std::string Curler::lauchRequest(const std::string& request)
     if (httpCode_ == 200)
     {
         std::cout << "\nGot successful response from " << (url_ + request) << std::endl;
+        return std::move(httpResponse_);
     }
     else
     {
         std::cout << "Couldn't GET from " << (url_ + request) << std::endl;
+        return {};
     }
-
-    return std::move(httpResponse_);
 }

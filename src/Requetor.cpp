@@ -9,9 +9,9 @@
 #include <string>
 #include <fstream>
 
-void writeInFile(const boost::filesystem::path& outputDirectory, const std::string &s, size_t idRequest)
+void writeInFile(const boost::filesystem::path &outputDirectory, const std::string &s, size_t idRequest)
 {
-    auto outputFilePath = outputDirectory / std::string("response" + std::to_string(idRequest));
+    auto outputFilePath = outputDirectory / std::string("response" + std::to_string(idRequest) + ".json");
     auto outputFile = std::ofstream(outputDirectory.string());
     outputFile.open(outputFilePath.string());
     outputFile << s;
@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
     const auto outputDirectory = boost::filesystem::path(argv[2]);
     if (!boost::filesystem::is_directory(outputDirectory))
     {
-        std::cerr << "ERROR : The output path is not a directory"  << std::endl;
+        std::cerr << "ERROR : The output path is not a directory" << std::endl;
         return EXIT_FAILURE;
     }
 
@@ -48,7 +48,10 @@ int main(int argc, char *argv[])
     for (auto const &request : rc.getRequestList())
     {
         auto response = c.lauchRequest(request);
-        writeInFile(outputDirectory, response, ++idRequest);
+        if (!response.empty())
+        {
+            writeInFile(outputDirectory, response, ++idRequest);
+        }
     }
 
     return EXIT_SUCCESS;
