@@ -6,31 +6,24 @@ import csv
 import statistics
 import json
 
-def parseJsonFile(filename, writer):
+def parseJsonFile(filename, requestId, writer):
     with open(filename) as f:
         data = json.load(f)
     
     timeAndDistanceList = []
-    nbJourney = 0
+    journeyId = 0
     for journey in data['journeys']:
-        nbJourney += 1
+        journeyId += 1
         timeAndDistance = parseTimeAndDistance(journey)
         timeAndDistanceList.append(timeAndDistance)
-        for mode, value in timeAndDistance.items():
-            print(mode)
-            for key in value:
-                print(key + ':', value[key])
 
-        writer.writerow([nbJourney])
-        writer.writerow(['', 'walking', timeAndDistance['walking']['distance'], timeAndDistance['walking']['time']])
-        writer.writerow(['', 'car', timeAndDistance['car']['distance'], timeAndDistance['car']['time']])
-        writer.writerow(['', 'rail', timeAndDistance['rail']['distance'], timeAndDistance['rail']['time']])
-        writer.writerow(['', 'subway', timeAndDistance['subway']['distance'], timeAndDistance['subway']['time']])
-        writer.writerow(['', 'bus', timeAndDistance['bus']['distance'], timeAndDistance['bus']['time']])
-        writer.writerow(['', 'waiting', timeAndDistance['waiting']['distance'], timeAndDistance['waiting']['time']])
-        writer.writerow(['', 'total', timeAndDistance['total']['distance'], timeAndDistance['total']['time']])
+        writer.writerow([requestId, journeyId, 'walking', timeAndDistance['walking']['distance'], timeAndDistance['walking']['time']])
+        writer.writerow([requestId, journeyId, 'car', timeAndDistance['car']['distance'], timeAndDistance['car']['time']])
+        writer.writerow([requestId, journeyId, 'rail', timeAndDistance['rail']['distance'], timeAndDistance['rail']['time']])
+        writer.writerow([requestId, journeyId, 'subway', timeAndDistance['subway']['distance'], timeAndDistance['subway']['time']])
+        writer.writerow([requestId, journeyId, 'bus', timeAndDistance['bus']['distance'], timeAndDistance['bus']['time']])
+        writer.writerow([requestId, journeyId, 'waiting', timeAndDistance['waiting']['distance'], timeAndDistance['waiting']['time']])
     
-    #print('\n'.join('{}: {}'.format(*k) for k in enumerate(timeAndDistanceList)))
 
 
 def parseTimeAndDistance(journey):
@@ -40,14 +33,12 @@ def parseTimeAndDistance(journey):
             'rail' :    {'time' : 0, 'distance' : 0},
             'subway' :  {'time' : 0, 'distance' : 0},
             'bus' :     {'time' : 0, 'distance' : 0},
-            'waiting' : {'time' : 0, 'distance' : 0},
-            'total' :   {'time' : 0, 'distance' : 0}
+            'waiting' : {'time' : 0, 'distance' : 0}
         }
 
         for section in journey['sections']:
             parseTime(timeAndDistance, section)
             parseDistance(timeAndDistance, section)
-
 
         return timeAndDistance
 
@@ -83,14 +74,11 @@ def parseTime(timeAndDistance, section):
         else:
             print('Unknown commercial mode : ' + sectionCommercialMode)
 
-
     elif(sectionType == 'waiting'):
         timeAndDistance[sectionType]['time'] += sectionDuration
 
     else:
         print('type inconnu : ' + sectionType)
-
-    timeAndDistance['total']['time'] += sectionDuration
 
 def parseDistance(timeAndDistance, section):
     sectionType = section['type']
@@ -129,20 +117,17 @@ def parseDistance(timeAndDistance, section):
         if (sectionType != 'park' and sectionType != 'waiting'):
             print('type inconnu : ' + sectionType)
 
-    timeAndDistance['total']['distance'] += sectionLength
-
 def main():
-    inputDirectory = os.path.realpath('../data/responses')
+    inputDirectory = os.path.realpath('../data/references')
     outputDirectory = os.path.realpath('../data/statistics')
     with open(outputDirectory + '/dict.csv', 'w') as csv_file:
         writer = csv.writer(csv_file)
-        writer.writerow(['ID', 'mode', 'distance', 'time'])
-        nbFile = 0
+        writer.writerow(['requestId', 'journeyId', 'mode', 'distance', 'time'])
+        requestId = 0
         for filename in os.listdir(inputDirectory):
             if filename.endswith(".json"):
-                nbFile += 1
-                writer.writerow([nbFile])
-                parseJsonFile(inputDirectory + '/' + filename, writer)
+                requestId += 1
+                parseJsonFile(inputDirectory + '/' + filename, requestId, writer)
                 continue
             else:
                 continue
