@@ -6,8 +6,8 @@ import csv
 import statistics
 import json
 
-def parseJsonFile(filename, requestId, writer):
-    with open(filename) as f:
+def parseJsonFile(inputDirectory, filename, requestId, writer):
+    with open(inputDirectory + '/' + filename) as f:
         data = json.load(f)
     
     timeAndDistanceList = []
@@ -17,28 +17,25 @@ def parseJsonFile(filename, requestId, writer):
         timeAndDistance = parseTimeAndDistance(journey)
         timeAndDistanceList.append(timeAndDistance)
 
-        writer.writerow([requestId, journeyId, 'walking', timeAndDistance['walking']['distance'], timeAndDistance['walking']['time']])
-        writer.writerow([requestId, journeyId, 'car', timeAndDistance['car']['distance'], timeAndDistance['car']['time']])
-        writer.writerow([requestId, journeyId, 'rail', timeAndDistance['rail']['distance'], timeAndDistance['rail']['time']])
-        writer.writerow([requestId, journeyId, 'subway', timeAndDistance['subway']['distance'], timeAndDistance['subway']['time']])
-        writer.writerow([requestId, journeyId, 'bus', timeAndDistance['bus']['distance'], timeAndDistance['bus']['time']])
-        writer.writerow([requestId, journeyId, 'waiting', timeAndDistance['waiting']['distance'], timeAndDistance['waiting']['time']])
-    
+        for mode, data in timeAndDistance.iteritems():
+            writer.writerow([filename, journeyId, mode, data['distance'], data['time'], data['nbTransit'], data['nbJourney']]) 
 
 
 def parseTimeAndDistance(journey):
         timeAndDistance = {
-            'walking' : {'time' : 0, 'distance' : 0},
-            'car' :     {'time' : 0, 'distance' : 0},
-            'rail' :    {'time' : 0, 'distance' : 0},
-            'subway' :  {'time' : 0, 'distance' : 0},
-            'bus' :     {'time' : 0, 'distance' : 0},
-            'waiting' : {'time' : 0, 'distance' : 0}
+            'walking' : {'time' : 0, 'distance' : 0, 'nbTransit' : 0, 'nbJourney' : 0},
+            'car' :     {'time' : 0, 'distance' : 0, 'nbTransit' : 0, 'nbJourney' : 0},
+            'rail' :    {'time' : 0, 'distance' : 0, 'nbTransit' : 0, 'nbJourney' : 0},
+            'subway' :  {'time' : 0, 'distance' : 0, 'nbTransit' : 0, 'nbJourney' : 0},
+            'bus' :     {'time' : 0, 'distance' : 0, 'nbTransit' : 0, 'nbJourney' : 0},
+            'waiting' : {'time' : 0, 'distance' : 0, 'nbTransit' : 0, 'nbJourney' : 0}
         }
 
         for section in journey['sections']:
             parseTime(timeAndDistance, section)
             parseDistance(timeAndDistance, section)
+            parseNbTransit(timeAndDistance, section)
+            parseNbJourney(timeAndDistance, section)
 
         return timeAndDistance
 
@@ -117,17 +114,69 @@ def parseDistance(timeAndDistance, section):
         if (sectionType != 'park' and sectionType != 'waiting'):
             print('type inconnu : ' + sectionType)
 
+def parseNbTransit(timeAndDistance, section):
+    sectionType = section['type']
+    if(sectionType == 'public_transport'):
+        sectionCommercialMode = section['display_informations']['commercial_mode']
+        sectionLength = section['geojson']['properties'][0]['length']
+        if(sectionCommercialMode == 'Métro'.decode('utf-8')):
+            timeAndDistance['subway']['nbTransit'] += 1
+        elif(sectionCommercialMode == 'RER'):
+            timeAndDistance['rail']['nbTransit'] += 1
+        elif(sectionCommercialMode == 'Bus'):
+            timeAndDistance['bus']['nbTransit'] += 1
+        else:
+            print('Unknown commercial mode : ' + sectionCommercialMode)
+            
+    else:
+        if (sectionType != 'park' and sectionType != 'waiting'
+            and sectionType != 'street_network' and sectionType != 'transfer'):
+            print('type inconnu : ' + sectionType)
+
+def parseNbJourney(timeAndDistance, section):
+    sectionType = section['type']
+    sectionLength = 0
+
+    if(sectionType == 'street_network'):
+        sectionMode = section['mode']
+        if (sectionMode == 'walking' or sectionMode == 'car'):
+            timeAndDistance[sectionMode]['nbJourney'] = 1
+        else:
+            print('mode inconnu : ' + sectionMode)
+
+    elif (sectionType == 'transfer'):
+        sectionTransferType = section['transfer_type']
+        if (sectionTransferType == 'walking' or sectionTransferType == 'car'):
+            timeAndDistance[sectionTransferType]['nbJourney'] = 1
+        else:
+            print('mode inconnu : ' + sectionTransferType)
+
+    elif(sectionType == 'public_transport'):
+        sectionCommercialMode = section['display_informations']['commercial_mode']
+        if(sectionCommercialMode == 'Métro'.decode('utf-8')):
+            timeAndDistance['subway']['nbJourney'] = 1
+        elif(sectionCommercialMode == 'RER'):
+            timeAndDistance['rail']['nbJourney'] = 1
+        elif(sectionCommercialMode == 'Bus'):
+            timeAndDistance['bus']['nbJourney'] = 1
+        else:
+            print('Unknown commercial mode : ' + sectionCommercialMode)
+            
+    else:
+        if (sectionType != 'park' and sectionType != 'waiting'):
+            print('type inconnu : ' + sectionType)
+
 def main():
     inputDirectory = os.path.realpath('../data/references')
     outputDirectory = os.path.realpath('../data/statistics')
     with open(outputDirectory + '/dict.csv', 'w') as csv_file:
         writer = csv.writer(csv_file)
-        writer.writerow(['requestId', 'journeyId', 'mode', 'distance', 'time'])
+        writer.writerow(['requestId', 'journeyId', 'mode', 'time', 'distance', 'nbTransit', 'nbJourney'])
         requestId = 0
         for filename in os.listdir(inputDirectory):
             if filename.endswith(".json"):
                 requestId += 1
-                parseJsonFile(inputDirectory + '/' + filename, requestId, writer)
+                parseJsonFile(inputDirectory, filename, requestId, writer)
                 continue
             else:
                 continue
