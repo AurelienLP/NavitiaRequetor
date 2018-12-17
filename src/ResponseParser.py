@@ -5,21 +5,21 @@ import sys
 import csv
 import statistics
 import json
+import pandas as pd
+import numpy
+import argparse
 
-def parseJsonFile(inputDirectory, filename, requestId, writer):
+def parseJsonFile(inputDirectory, filename, writer):
     with open(inputDirectory + '/' + filename) as f:
         data = json.load(f)
     
-    timeAndDistanceList = []
     journeyId = 0
     for journey in data['journeys']:
         journeyId += 1
         timeAndDistance = parseTimeAndDistance(journey)
-        timeAndDistanceList.append(timeAndDistance)
 
         for mode, data in timeAndDistance.iteritems():
             writer.writerow([filename, journeyId, mode, data['distance'], data['time'], data['nbTransit'], data['nbJourney']]) 
-
 
 def parseTimeAndDistance(journey):
         timeAndDistance = {
@@ -166,19 +166,49 @@ def parseNbJourney(timeAndDistance, section):
         if (sectionType != 'park' and sectionType != 'waiting'):
             print('type inconnu : ' + sectionType)
 
+def pivotTable(tempcsvFilePath, outputDirectory, outputFileName):
+    df = pd.read_csv(tempcsvFilePath)
+
+    tableByRequest = pd.pivot_table(df,index=["requestId", "mode"],values=["distance", "time", "nbTransit", "nbJourney"],
+                            aggfunc={"distance":[numpy.mean, numpy.std],
+                                    "time":[numpy.mean, numpy.std],
+                                    "nbTransit":sum, "nbJourney":sum})
+    convertTimeAndDistance(tableByRequest)
+    tableByRequest.to_csv(outputDirectory + '/' + 'request' + outputFileName)
+
+    tableByMode = pd.pivot_table(df,index=["mode"],values=["distance", "time", "nbJourney"],
+                            aggfunc={"distance":[numpy.mean, numpy.std],
+                                     "time":[numpy.mean, numpy.std],
+                                     "nbJourney":sum})
+    convertTimeAndDistance(tableByMode)
+    tableByMode.to_csv(outputDirectory + '/' + 'mode' + outputFileName)
+
+def convertTimeAndDistance(table):
+    table['distance'] = numpy.round(table['distance'] / 1000.0, 2)
+    table['time'] = numpy.round( (table['time'] / 60.0), 2 )
+
 def main():
-    inputDirectory = os.path.realpath('../data/references')
-    outputDirectory = os.path.realpath('../data/statistics')
-    with open(outputDirectory + '/dict.csv', 'w') as csv_file:
+    parser = argparse.ArgumentParser(description='Optional app description')
+    parser.add_argument("-i", "--inputDirectory", dest="inputDirectory", required=True,
+                    help="Input directory containing all json responses", metavar="INPUT")
+    parser.add_argument("-o", "--outputDirectory", dest="outputDirectory", required=True,
+                    help="Output Directory", metavar="OUTPUT DIRECTORY")
+    parser.add_argument("-f", "--outputFileName", dest="outputFileName", required=True,
+                    help="Output File name", metavar="OUTPUT FILE")
+    
+    args = parser.parse_args()
+    tempcsvFilePath = args.outputDirectory + '/' + "temp.csv"
+                    
+    with open(tempcsvFilePath, 'w') as csv_file:
         writer = csv.writer(csv_file)
         writer.writerow(['requestId', 'journeyId', 'mode', 'time', 'distance', 'nbTransit', 'nbJourney'])
-        requestId = 0
-        for filename in os.listdir(inputDirectory):
+        for filename in os.listdir(args.inputDirectory):
             if filename.endswith(".json"):
-                requestId += 1
-                parseJsonFile(inputDirectory, filename, requestId, writer)
+                parseJsonFile(args.inputDirectory, filename, writer)
                 continue
             else:
                 continue
+    
+    pivotTable(tempcsvFilePath, args.outputDirectory, args.outputFileName)
 
 main()
