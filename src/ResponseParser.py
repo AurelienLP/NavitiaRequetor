@@ -174,14 +174,14 @@ def pivotTable(tempcsvFilePath, outputDirectory, outputFileName):
                                     "time":[numpy.mean, numpy.std],
                                     "nbTransit":sum, "nbJourney":sum})
     convertTimeAndDistance(tableByRequest)
-    tableByRequest.to_csv(outputDirectory + '/' + 'request' + outputFileName)
+    tableByRequest.to_csv(outputDirectory + '/' + 'request' + outputFileName + '.csv')
 
     tableByMode = pd.pivot_table(df,index=["mode"],values=["distance", "time", "nbJourney"],
                             aggfunc={"distance":[numpy.mean, numpy.std],
                                      "time":[numpy.mean, numpy.std],
                                      "nbJourney":sum})
     convertTimeAndDistance(tableByMode)
-    tableByMode.to_csv(outputDirectory + '/' + 'mode' + outputFileName)
+    tableByMode.to_csv(outputDirectory + '/' + 'mode' + outputFileName + '.csv')
 
 def convertTimeAndDistance(table):
     table['distance'] = numpy.round(table['distance'] / 1000.0, 2)
@@ -201,7 +201,7 @@ def main():
                     
     with open(tempcsvFilePath, 'w') as csv_file:
         writer = csv.writer(csv_file)
-        writer.writerow(['requestId', 'journeyId', 'mode', 'time', 'distance', 'nbTransit', 'nbJourney'])
+        writer.writerow(['requestId', 'journeyId', 'mode', 'distance', 'time', 'nbTransit', 'nbJourney'])
         for filename in os.listdir(args.inputDirectory):
             if filename.endswith(".json"):
                 parseJsonFile(args.inputDirectory, filename, writer)
