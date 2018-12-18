@@ -1,9 +1,7 @@
 # coding=utf-8
 
 import os
-import sys
 import csv
-import statistics
 import json
 import pandas as pd
 import numpy
@@ -17,13 +15,13 @@ def parseJsonFile(inputDirectory, filename, writer):
     journeyId = 0
     for journey in data['journeys']:
         journeyId += 1
-        timeAndDistance = parseTimeAndDistance(journey)
+        journeyValues = parseJourneyValues(journey)
 
-        for mode, data in timeAndDistance.iteritems():
+        for mode, data in journeyValues.iteritems():
             writer.writerow([filename, journeyId, mode, data['distance'], data['time'], data['nbTransit'], data['nbJourney']]) 
 
-def parseTimeAndDistance(journey):
-        timeAndDistance = {
+def parseJourneyValues(journey):
+        journeyValues = {
             'walking' : {'time' : 0, 'distance' : 0, 'nbTransit' : 0, 'nbJourney' : 0},
             'car' :     {'time' : 0, 'distance' : 0, 'nbTransit' : 0, 'nbJourney' : 0},
             'rail' :    {'time' : 0, 'distance' : 0, 'nbTransit' : 0, 'nbJourney' : 0},
@@ -33,59 +31,59 @@ def parseTimeAndDistance(journey):
         }
 
         for section in journey['sections']:
-            parseTime(timeAndDistance, section)
-            parseDistance(timeAndDistance, section)
-            parseNbTransit(timeAndDistance, section)
-            parseNbJourney(timeAndDistance, section)
+            parseTime(journeyValues, section)
+            parseDistance(journeyValues, section)
+            parseNbTransit(journeyValues, section)
+            parseNbJourney(journeyValues, section)
 
-        return timeAndDistance
+        return journeyValues
 
-def parseTime(timeAndDistance, section):
+def parseTime(journeyValues, section):
     sectionType = section['type']
     sectionDuration = section['duration']
 
     if(sectionType == 'street_network'):
         sectionMode = section['mode']
         if (sectionMode == 'walking' or sectionMode == 'car'):
-            timeAndDistance[sectionMode]['time'] += sectionDuration
+            journeyValues[sectionMode]['time'] += sectionDuration
         else:
             print('parseTime - mode inconnu : ' + sectionMode)
 
     elif(sectionType == 'crow_fly'):
         sectionMode = section['mode']
         if (sectionMode == 'walking' or sectionMode == 'car'):
-            timeAndDistance[sectionMode]['time'] += sectionDuration
+            journeyValues[sectionMode]['time'] += sectionDuration
         else:
             print('parseTime - mode inconnu : ' + sectionMode)
 
     elif (sectionType == 'transfer'):
         sectionTransferType = section['transfer_type']
         if (sectionTransferType == 'walking' or sectionTransferType == 'car'):
-            timeAndDistance[sectionTransferType]['time'] += sectionDuration
+            journeyValues[sectionTransferType]['time'] += sectionDuration
         else:
             print('parseTime - mode inconnu : ' + sectionTransferType)
 
     elif(sectionType == 'leave_parking' or sectionType == 'park'):
-        timeAndDistance['car']['time'] += sectionDuration
+        journeyValues['car']['time'] += sectionDuration
 
     elif(sectionType == 'public_transport'):
         sectionCommercialMode = section['display_informations']['commercial_mode']
         if(sectionCommercialMode == 'Métro'.decode('utf-8')):
-            timeAndDistance['subway']['time'] += sectionDuration
+            journeyValues['subway']['time'] += sectionDuration
         elif(sectionCommercialMode == 'RER' or sectionCommercialMode == 'Tramway'):
-            timeAndDistance['rail']['time'] += sectionDuration
+            journeyValues['rail']['time'] += sectionDuration
         elif(sectionCommercialMode == 'Bus'):
-            timeAndDistance['bus']['time'] += sectionDuration
+            journeyValues['bus']['time'] += sectionDuration
         else:
             print('parseTime - Unknown commercial mode : ' + sectionCommercialMode)
 
     elif(sectionType == 'waiting'):
-        timeAndDistance[sectionType]['time'] += sectionDuration
+        journeyValues[sectionType]['time'] += sectionDuration
 
     else:
         print('parseTime - type inconnu : ' + sectionType)
 
-def parseDistance(timeAndDistance, section):
+def parseDistance(journeyValues, section):
     sectionType = section['type']
     sectionLength = 0
 
@@ -94,7 +92,7 @@ def parseDistance(timeAndDistance, section):
         if (sectionMode == 'walking' or sectionMode == 'car'):
             for path in section['path']:
                 sectionLength += path['length']
-            timeAndDistance[sectionMode]['distance'] += sectionLength
+            journeyValues[sectionMode]['distance'] += sectionLength
         else:
             print('mode inconnu : ' + sectionMode)
 
@@ -105,7 +103,7 @@ def parseDistance(timeAndDistance, section):
             pointTo = getCoords(section, 'to')
             #(lat, lon)
             sectionLength = geopy.distance.distance(pointFrom, pointTo).m * 1.1
-            timeAndDistance[sectionMode]['distance'] += sectionLength
+            journeyValues[sectionMode]['distance'] += sectionLength
         else:
             print('parseDistance - mode inconnu : ' + sectionMode)
     
@@ -114,7 +112,7 @@ def parseDistance(timeAndDistance, section):
         sectionTransferType = section['transfer_type']
         if (sectionTransferType == 'walking' or sectionTransferType == 'car'):
             sectionLength = section['geojson']['properties'][0]['length']
-            timeAndDistance[sectionTransferType]['distance'] += sectionLength
+            journeyValues[sectionTransferType]['distance'] += sectionLength
         else:
             print('mode inconnu : ' + sectionTransferType)
 
@@ -122,11 +120,11 @@ def parseDistance(timeAndDistance, section):
         sectionCommercialMode = section['display_informations']['commercial_mode']
         sectionLength = section['geojson']['properties'][0]['length']
         if(sectionCommercialMode == 'Métro'.decode('utf-8')):
-            timeAndDistance['subway']['distance'] += sectionLength
+            journeyValues['subway']['distance'] += sectionLength
         elif(sectionCommercialMode == 'RER' or sectionCommercialMode == 'Tramway'):
-            timeAndDistance['rail']['distance'] += sectionLength
+            journeyValues['rail']['distance'] += sectionLength
         elif(sectionCommercialMode == 'Bus'):
-            timeAndDistance['bus']['distance'] += sectionLength
+            journeyValues['bus']['distance'] += sectionLength
         else:
             print('parseDistance - Unknown commercial mode : ' + sectionCommercialMode)
             
@@ -149,17 +147,17 @@ def getCoords(section, key):
         print('sectionEmbeddedType inconnu : ' + sectionEmbeddedType)
         return (0,0)
 
-def parseNbTransit(timeAndDistance, section):
+def parseNbTransit(journeyValues, section):
     sectionType = section['type']
     if(sectionType == 'public_transport'):
         sectionCommercialMode = section['display_informations']['commercial_mode']
         sectionLength = section['geojson']['properties'][0]['length']
         if(sectionCommercialMode == 'Métro'.decode('utf-8')):
-            timeAndDistance['subway']['nbTransit'] += 1
+            journeyValues['subway']['nbTransit'] += 1
         elif(sectionCommercialMode == 'RER' or sectionCommercialMode == 'Tramway'):
-            timeAndDistance['rail']['nbTransit'] += 1
+            journeyValues['rail']['nbTransit'] += 1
         elif(sectionCommercialMode == 'Bus'):
-            timeAndDistance['bus']['nbTransit'] += 1
+            journeyValues['bus']['nbTransit'] += 1
         else:
             print('parseNbTransit - Unknown commercial mode : ' + sectionCommercialMode)
 
@@ -172,32 +170,32 @@ def parseNbTransit(timeAndDistance, section):
             and sectionType != 'street_network' and sectionType != 'transfer'):
             print('parseNbTransit - type inconnu : ' + sectionType)
 
-def parseNbJourney(timeAndDistance, section):
+def parseNbJourney(journeyValues, section):
     sectionType = section['type']
     sectionLength = 0
 
     if(sectionType == 'street_network' or sectionType == 'crow_fly'):
         sectionMode = section['mode']
         if (sectionMode == 'walking' or sectionMode == 'car'):
-            timeAndDistance[sectionMode]['nbJourney'] = 1
+            journeyValues[sectionMode]['nbJourney'] = 1
         else:
             print('parseNbJourney - mode inconnu : ' + sectionMode)
 
     elif (sectionType == 'transfer'):
         sectionTransferType = section['transfer_type']
         if (sectionTransferType == 'walking' or sectionTransferType == 'car'):
-            timeAndDistance[sectionTransferType]['nbJourney'] = 1
+            journeyValues[sectionTransferType]['nbJourney'] = 1
         else:
             print('parseNbJourney - mode inconnu : ' + sectionTransferType)
 
     elif(sectionType == 'public_transport'):
         sectionCommercialMode = section['display_informations']['commercial_mode']
         if(sectionCommercialMode == 'Métro'.decode('utf-8')):
-            timeAndDistance['subway']['nbJourney'] = 1
+            journeyValues['subway']['nbJourney'] = 1
         elif(sectionCommercialMode == 'RER' or sectionCommercialMode == 'Tramway'):
-            timeAndDistance['rail']['nbJourney'] = 1
+            journeyValues['rail']['nbJourney'] = 1
         elif(sectionCommercialMode == 'Bus'):
-            timeAndDistance['bus']['nbJourney'] = 1
+            journeyValues['bus']['nbJourney'] = 1
         else:
             print('parseNbJourney - Unknown commercial mode : ' + sectionCommercialMode)
             
@@ -212,17 +210,17 @@ def pivotTable(tempcsvFilePath, outputDirectory, outputFileName):
                             aggfunc={"distance":[numpy.mean, numpy.std],
                                     "time":[numpy.mean, numpy.std],
                                     "nbTransit":sum, "nbJourney":sum})
-    convertTimeAndDistance(tableByRequest)
+    convertJourneyValues(tableByRequest)
     tableByRequest.to_csv(outputDirectory + '/' + 'request' + outputFileName + '.csv')
 
     tableByMode = pd.pivot_table(df,index=["mode"],values=["distance", "time", "nbJourney"],
                             aggfunc={"distance":[numpy.mean, numpy.std],
                                      "time":[numpy.mean, numpy.std],
                                      "nbJourney":sum})
-    convertTimeAndDistance(tableByMode)
+    convertJourneyValues(tableByMode)
     tableByMode.to_csv(outputDirectory + '/' + 'mode' + outputFileName + '.csv')
 
-def convertTimeAndDistance(table):
+def convertJourneyValues(table):
     table['distance'] = numpy.round(table['distance'] / 1000.0, 2)
     table['time'] = numpy.round( (table['time'] / 60.0), 2 )
 
