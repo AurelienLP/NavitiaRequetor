@@ -8,6 +8,7 @@ import json
 import pandas as pd
 import numpy
 import argparse
+import geopy.distance
 
 def parseJsonFile(inputDirectory, filename, writer):
     with open(inputDirectory + '/' + filename) as f:
@@ -48,14 +49,21 @@ def parseTime(timeAndDistance, section):
         if (sectionMode == 'walking' or sectionMode == 'car'):
             timeAndDistance[sectionMode]['time'] += sectionDuration
         else:
-            print('mode inconnu : ' + sectionMode)
+            print('parseTime - mode inconnu : ' + sectionMode)
+
+    elif(sectionType == 'crow_fly'):
+        sectionMode = section['mode']
+        if (sectionMode == 'walking' or sectionMode == 'car'):
+            timeAndDistance[sectionMode]['time'] += sectionDuration
+        else:
+            print('parseTime - mode inconnu : ' + sectionMode)
 
     elif (sectionType == 'transfer'):
         sectionTransferType = section['transfer_type']
         if (sectionTransferType == 'walking' or sectionTransferType == 'car'):
             timeAndDistance[sectionTransferType]['time'] += sectionDuration
         else:
-            print('mode inconnu : ' + sectionTransferType)
+            print('parseTime - mode inconnu : ' + sectionTransferType)
 
     elif(sectionType == 'leave_parking' or sectionType == 'park'):
         timeAndDistance['car']['time'] += sectionDuration
@@ -64,18 +72,18 @@ def parseTime(timeAndDistance, section):
         sectionCommercialMode = section['display_informations']['commercial_mode']
         if(sectionCommercialMode == 'Métro'.decode('utf-8')):
             timeAndDistance['subway']['time'] += sectionDuration
-        elif(sectionCommercialMode == 'RER'):
+        elif(sectionCommercialMode == 'RER' or sectionCommercialMode == 'Tramway'):
             timeAndDistance['rail']['time'] += sectionDuration
         elif(sectionCommercialMode == 'Bus'):
             timeAndDistance['bus']['time'] += sectionDuration
         else:
-            print('Unknown commercial mode : ' + sectionCommercialMode)
+            print('parseTime - Unknown commercial mode : ' + sectionCommercialMode)
 
     elif(sectionType == 'waiting'):
         timeAndDistance[sectionType]['time'] += sectionDuration
 
     else:
-        print('type inconnu : ' + sectionType)
+        print('parseTime - type inconnu : ' + sectionType)
 
 def parseDistance(timeAndDistance, section):
     sectionType = section['type']
@@ -90,6 +98,18 @@ def parseDistance(timeAndDistance, section):
         else:
             print('mode inconnu : ' + sectionMode)
 
+    elif(sectionType == 'crow_fly'):
+        sectionMode = section['mode']
+        if (sectionMode == 'walking' or sectionMode == 'car'):
+            pointFrom = getCoords(section, 'from')
+            pointTo = getCoords(section, 'to')
+            #(lat, lon)
+            sectionLength = geopy.distance.distance(pointFrom, pointTo).m * 1.1
+            timeAndDistance[sectionMode]['distance'] += sectionLength
+        else:
+            print('parseDistance - mode inconnu : ' + sectionMode)
+    
+
     elif (sectionType == 'transfer'):
         sectionTransferType = section['transfer_type']
         if (sectionTransferType == 'walking' or sectionTransferType == 'car'):
@@ -103,16 +123,31 @@ def parseDistance(timeAndDistance, section):
         sectionLength = section['geojson']['properties'][0]['length']
         if(sectionCommercialMode == 'Métro'.decode('utf-8')):
             timeAndDistance['subway']['distance'] += sectionLength
-        elif(sectionCommercialMode == 'RER'):
+        elif(sectionCommercialMode == 'RER' or sectionCommercialMode == 'Tramway'):
             timeAndDistance['rail']['distance'] += sectionLength
         elif(sectionCommercialMode == 'Bus'):
             timeAndDistance['bus']['distance'] += sectionLength
         else:
-            print('Unknown commercial mode : ' + sectionCommercialMode)
+            print('parseDistance - Unknown commercial mode : ' + sectionCommercialMode)
             
     else:
         if (sectionType != 'park' and sectionType != 'waiting'):
-            print('type inconnu : ' + sectionType)
+            print('parseDistance - type inconnu : ' + sectionType)
+
+def getCoords(section, key):
+    sectionEmbeddedType = section[key]['embedded_type']
+    if sectionEmbeddedType == 'address':
+        stringCoords = section[key]['id']
+        splittedString = stringCoords.split(';')
+        return (splittedString[1], splittedString[0])
+
+    elif sectionEmbeddedType == 'stop_point':
+        coords = section[key][sectionEmbeddedType]['coord']
+        return (coords['lat'], coords['lon'])
+
+    else:
+        print('sectionEmbeddedType inconnu : ' + sectionEmbeddedType)
+        return (0,0)
 
 def parseNbTransit(timeAndDistance, section):
     sectionType = section['type']
@@ -121,50 +156,54 @@ def parseNbTransit(timeAndDistance, section):
         sectionLength = section['geojson']['properties'][0]['length']
         if(sectionCommercialMode == 'Métro'.decode('utf-8')):
             timeAndDistance['subway']['nbTransit'] += 1
-        elif(sectionCommercialMode == 'RER'):
+        elif(sectionCommercialMode == 'RER' or sectionCommercialMode == 'Tramway'):
             timeAndDistance['rail']['nbTransit'] += 1
         elif(sectionCommercialMode == 'Bus'):
             timeAndDistance['bus']['nbTransit'] += 1
         else:
-            print('Unknown commercial mode : ' + sectionCommercialMode)
+            print('parseNbTransit - Unknown commercial mode : ' + sectionCommercialMode)
+
+    elif (sectionType == 'crow_fly'):
+        if not(section['mode'] == 'car' or section['mode'] == 'walking'):
+            print('parseNbTransit - crow_fly : ' + section['mode'])
             
     else:
         if (sectionType != 'park' and sectionType != 'waiting'
             and sectionType != 'street_network' and sectionType != 'transfer'):
-            print('type inconnu : ' + sectionType)
+            print('parseNbTransit - type inconnu : ' + sectionType)
 
 def parseNbJourney(timeAndDistance, section):
     sectionType = section['type']
     sectionLength = 0
 
-    if(sectionType == 'street_network'):
+    if(sectionType == 'street_network' or sectionType == 'crow_fly'):
         sectionMode = section['mode']
         if (sectionMode == 'walking' or sectionMode == 'car'):
             timeAndDistance[sectionMode]['nbJourney'] = 1
         else:
-            print('mode inconnu : ' + sectionMode)
+            print('parseNbJourney - mode inconnu : ' + sectionMode)
 
     elif (sectionType == 'transfer'):
         sectionTransferType = section['transfer_type']
         if (sectionTransferType == 'walking' or sectionTransferType == 'car'):
             timeAndDistance[sectionTransferType]['nbJourney'] = 1
         else:
-            print('mode inconnu : ' + sectionTransferType)
+            print('parseNbJourney - mode inconnu : ' + sectionTransferType)
 
     elif(sectionType == 'public_transport'):
         sectionCommercialMode = section['display_informations']['commercial_mode']
         if(sectionCommercialMode == 'Métro'.decode('utf-8')):
             timeAndDistance['subway']['nbJourney'] = 1
-        elif(sectionCommercialMode == 'RER'):
+        elif(sectionCommercialMode == 'RER' or sectionCommercialMode == 'Tramway'):
             timeAndDistance['rail']['nbJourney'] = 1
         elif(sectionCommercialMode == 'Bus'):
             timeAndDistance['bus']['nbJourney'] = 1
         else:
-            print('Unknown commercial mode : ' + sectionCommercialMode)
+            print('parseNbJourney - Unknown commercial mode : ' + sectionCommercialMode)
             
     else:
         if (sectionType != 'park' and sectionType != 'waiting'):
-            print('type inconnu : ' + sectionType)
+            print('parseNbJourney - type inconnu : ' + sectionType)
 
 def pivotTable(tempcsvFilePath, outputDirectory, outputFileName):
     df = pd.read_csv(tempcsvFilePath)
