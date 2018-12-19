@@ -36,7 +36,7 @@ def setupLogger(outputDirectory):
     logger.addHandler(ch)
 
 def computeStatistics(args):
-    tempcsvFilePath = args.outputDirectory + "journeyValueByRequestAndMode.csv"
+    tempcsvFilePath = os.path.join(args.outputDirectory, "journeyValueByRequestAndMode.csv")
 
     logging.info('Creating file : ' + tempcsvFilePath)
     with open(tempcsvFilePath, 'w') as csv_file:
@@ -256,8 +256,8 @@ def pivotTable(tempcsvFilePath, outputDirectory, outputFileName):
                                     "time":[numpy.mean, numpy.std],
                                     "nbTransit":sum, "nbJourney":sum})
     convertJourneyValues(tableByRequest)
-    tableByRequestFilePath = outputDirectory + 'request' + outputFileName + '.csv'
-    tableByRequest.to_csv(tableByRequestFilePath)
+    tableByRequestFilePath = os.path.join(outputDirectory, 'request' + outputFileName + '.csv')
+    tableByRequest.to_csv(tableByRequestFilePath, decimal=',')
     logging.info('File : ' + tableByRequestFilePath + ' created')
 
     tableByMode = pd.pivot_table(df,index=["mode"],values=["distance", "time", "nbJourney"],
@@ -265,13 +265,14 @@ def pivotTable(tempcsvFilePath, outputDirectory, outputFileName):
                                      "time":[numpy.mean, numpy.std],
                                      "nbJourney":sum})
     convertJourneyValues(tableByMode)
-    tableByModeFilePath = outputDirectory + 'mode' + outputFileName + '.csv'
-    tableByMode.to_csv(tableByModeFilePath)
+    tableByMode['distance/time'] =  numpy.round(tableByMode['distance']['mean'] / tableByMode['time']['mean'], 2)
+    tableByModeFilePath = os.path.join(outputDirectory, 'mode' + outputFileName + '.csv')
+    tableByMode.to_csv(tableByModeFilePath, decimal=',')
     logging.info('File : ' + tableByModeFilePath + ' created')
 
 def convertJourneyValues(table):
     table['distance'] = numpy.round(table['distance'] / 1000.0, 2)
-    table['time'] = numpy.round( (table['time'] / 60.0), 2 )
+    table['time'] = numpy.round( (table['time'] / 3600.0), 2 )
 
 def main():
     args = parseArguments()
