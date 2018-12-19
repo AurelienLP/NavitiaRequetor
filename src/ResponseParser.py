@@ -10,6 +10,14 @@ import argparse
 import geopy.distance
 import logging
 
+# This program will parse a list of json file containing the response of a journey
+# It will then write 3 csv files :
+#   - request.csv listing for each journey of a request and for each mode
+#       the time, distance, number of transit and number of journey
+#   - journeyValueByRequestAndMode.csv regrouping all journeys of a request by mode and computing
+#       the mean of distance and time, the standard deviation of distance and time and the sum of transit and journey
+#   - mode.csv regrouping all modes
+
 def parseArguments():
     parser = argparse.ArgumentParser(description='Optional app description')
     parser.add_argument("-i", "--inputDirectory", dest="inputDirectory", required=True,
