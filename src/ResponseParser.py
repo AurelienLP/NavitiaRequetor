@@ -1,12 +1,58 @@
 # coding=utf-8
 
 import os
+import sys
 import csv
 import json
 import pandas as pd
 import numpy
 import argparse
 import geopy.distance
+import logging
+
+def parseArguments():
+    parser = argparse.ArgumentParser(description='Optional app description')
+    parser.add_argument("-i", "--inputDirectory", dest="inputDirectory", required=True,
+                    help="Input directory containing all json responses", metavar="INPUT")
+    parser.add_argument("-o", "--outputDirectory", dest="outputDirectory", required=True,
+                    help="Output Directory", metavar="OUTPUT DIRECTORY")
+    parser.add_argument("-f", "--outputFileName", dest="outputFileName", required=True,
+                    help="Output File name", metavar="OUTPUT FILE")
+    return parser.parse_args()
+
+def setupLogger(outputDirectory):
+    formatter = logging.Formatter('[%(asctime)s] [%(levelname)s] %(message)s',
+                                  '%d/%m/%Y %H:%M:%S')
+
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+
+    fh = logging.FileHandler( os.path.join(outputDirectory, 'responseParser.log'), 'w' )
+    ch = logging.StreamHandler(sys.stdout)
+    fh.setFormatter(formatter)
+    ch.setFormatter(formatter)
+
+    logger.addHandler(fh)
+    logger.addHandler(ch)
+
+def computeStatistics(args):
+    tempcsvFilePath = args.outputDirectory + "journeyValueByRequestAndMode.csv"
+
+    logging.info('Creating file : ' + tempcsvFilePath)
+    with open(tempcsvFilePath, 'w') as csv_file:
+        writer = csv.writer(csv_file, quoting=csv.QUOTE_NONNUMERIC)
+        writer.writerow(['requestId', 'journeyId', 'mode', 'distance', 'time', 'nbTransit', 'nbJourney'])
+        for filename in os.listdir(args.inputDirectory):
+            if filename.endswith(".json"):
+                parseJsonFile(args.inputDirectory, filename, writer)
+                continue
+            else:
+                continue
+    
+    logging.info('File ' + tempcsvFilePath + ' created !')
+    logging.info('Starting pivot...')
+    pivotTable(tempcsvFilePath, args.outputDirectory, args.outputFileName)
+    logging.info('End pivot !')
 
 def parseJsonFile(inputDirectory, filename, writer):
     with open(inputDirectory + '/' + filename) as f:
@@ -107,7 +153,6 @@ def parseDistance(journeyValues, section):
         else:
             print('parseDistance - mode inconnu : ' + sectionMode)
     
-
     elif (sectionType == 'transfer'):
         sectionTransferType = section['transfer_type']
         if (sectionTransferType == 'walking' or sectionTransferType == 'car'):
@@ -211,41 +256,26 @@ def pivotTable(tempcsvFilePath, outputDirectory, outputFileName):
                                     "time":[numpy.mean, numpy.std],
                                     "nbTransit":sum, "nbJourney":sum})
     convertJourneyValues(tableByRequest)
-    tableByRequest.to_csv(outputDirectory + '/' + 'request' + outputFileName + '.csv')
+    tableByRequestFilePath = outputDirectory + 'request' + outputFileName + '.csv'
+    tableByRequest.to_csv(tableByRequestFilePath)
+    logging.info('File : ' + tableByRequestFilePath + ' created')
 
     tableByMode = pd.pivot_table(df,index=["mode"],values=["distance", "time", "nbJourney"],
                             aggfunc={"distance":[numpy.mean, numpy.std],
                                      "time":[numpy.mean, numpy.std],
                                      "nbJourney":sum})
     convertJourneyValues(tableByMode)
-    tableByMode.to_csv(outputDirectory + '/' + 'mode' + outputFileName + '.csv')
+    tableByModeFilePath = outputDirectory + 'mode' + outputFileName + '.csv'
+    tableByMode.to_csv(tableByModeFilePath)
+    logging.info('File : ' + tableByModeFilePath + ' created')
 
 def convertJourneyValues(table):
     table['distance'] = numpy.round(table['distance'] / 1000.0, 2)
     table['time'] = numpy.round( (table['time'] / 60.0), 2 )
 
 def main():
-    parser = argparse.ArgumentParser(description='Optional app description')
-    parser.add_argument("-i", "--inputDirectory", dest="inputDirectory", required=True,
-                    help="Input directory containing all json responses", metavar="INPUT")
-    parser.add_argument("-o", "--outputDirectory", dest="outputDirectory", required=True,
-                    help="Output Directory", metavar="OUTPUT DIRECTORY")
-    parser.add_argument("-f", "--outputFileName", dest="outputFileName", required=True,
-                    help="Output File name", metavar="OUTPUT FILE")
-    
-    args = parser.parse_args()
-    tempcsvFilePath = args.outputDirectory + '/' + "temp.csv"
-                    
-    with open(tempcsvFilePath, 'w') as csv_file:
-        writer = csv.writer(csv_file)
-        writer.writerow(['requestId', 'journeyId', 'mode', 'distance', 'time', 'nbTransit', 'nbJourney'])
-        for filename in os.listdir(args.inputDirectory):
-            if filename.endswith(".json"):
-                parseJsonFile(args.inputDirectory, filename, writer)
-                continue
-            else:
-                continue
-    
-    pivotTable(tempcsvFilePath, args.outputDirectory, args.outputFileName)
+    args = parseArguments()
+    setupLogger(args.outputDirectory)
+    computeStatistics(args)
 
 main()
