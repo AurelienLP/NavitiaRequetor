@@ -18,7 +18,7 @@ def parseArguments():
     return parser.parse_args()
 
 def setupLogger(outputDirectory):
-    formatter = logging.Formatter('[%(asctime)s] [%(levelname)s] %(message)s',
+    formatter = logging.Formatter('[%(asctime)s] [%(filename)s:%(lineno)s] [%(levelname)s] %(message)s',
                                   '%d/%m/%Y %H:%M:%S')
 
     logger = logging.getLogger()

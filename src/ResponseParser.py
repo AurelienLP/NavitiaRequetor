@@ -21,7 +21,7 @@ def parseArguments():
     return parser.parse_args()
 
 def setupLogger(outputDirectory):
-    formatter = logging.Formatter('[%(asctime)s] [%(levelname)s] %(message)s',
+    formatter = logging.Formatter('[%(asctime)s] [%(filename)s:%(lineno)s] [%(levelname)s] %(message)s',
                                   '%d/%m/%Y %H:%M:%S')
 
     logger = logging.getLogger()
@@ -93,21 +93,21 @@ def parseTime(journeyValues, section):
         if (sectionMode == 'walking' or sectionMode == 'car'):
             journeyValues[sectionMode]['time'] += sectionDuration
         else:
-            print('parseTime - mode inconnu : ' + sectionMode)
+            logging.error('Unknown mode : ' + sectionMode)
 
     elif(sectionType == 'crow_fly'):
         sectionMode = section['mode']
         if (sectionMode == 'walking' or sectionMode == 'car'):
             journeyValues[sectionMode]['time'] += sectionDuration
         else:
-            print('parseTime - mode inconnu : ' + sectionMode)
+            logging.error('Unknown mode : ' + sectionMode)
 
     elif (sectionType == 'transfer'):
         sectionTransferType = section['transfer_type']
         if (sectionTransferType == 'walking' or sectionTransferType == 'car'):
             journeyValues[sectionTransferType]['time'] += sectionDuration
         else:
-            print('parseTime - mode inconnu : ' + sectionTransferType)
+            logging.error('Unknown mode : ' + sectionTransferType)
 
     elif(sectionType == 'leave_parking' or sectionType == 'park'):
         journeyValues['car']['time'] += sectionDuration
@@ -121,13 +121,13 @@ def parseTime(journeyValues, section):
         elif(sectionCommercialMode == 'Bus'):
             journeyValues['bus']['time'] += sectionDuration
         else:
-            print('parseTime - Unknown commercial mode : ' + sectionCommercialMode)
+            logging.error('Unknown commercial mode : ' + sectionCommercialMode)
 
     elif(sectionType == 'waiting'):
         journeyValues[sectionType]['time'] += sectionDuration
 
     else:
-        print('parseTime - type inconnu : ' + sectionType)
+        logging.error('Unknown type : ' + sectionType)
 
 def parseDistance(journeyValues, section):
     sectionType = section['type']
@@ -140,7 +140,7 @@ def parseDistance(journeyValues, section):
                 sectionLength += path['length']
             journeyValues[sectionMode]['distance'] += sectionLength
         else:
-            print('mode inconnu : ' + sectionMode)
+            logging.error('Unknown mode : ' + sectionMode)
 
     elif(sectionType == 'crow_fly'):
         sectionMode = section['mode']
@@ -151,7 +151,7 @@ def parseDistance(journeyValues, section):
             sectionLength = geopy.distance.distance(pointFrom, pointTo).m * 1.1
             journeyValues[sectionMode]['distance'] += sectionLength
         else:
-            print('parseDistance - mode inconnu : ' + sectionMode)
+            logging.error('Unknown mode : ' + sectionMode)
     
     elif (sectionType == 'transfer'):
         sectionTransferType = section['transfer_type']
@@ -159,7 +159,7 @@ def parseDistance(journeyValues, section):
             sectionLength = section['geojson']['properties'][0]['length']
             journeyValues[sectionTransferType]['distance'] += sectionLength
         else:
-            print('mode inconnu : ' + sectionTransferType)
+            logging.error('Unknown mode : ' + sectionTransferType)
 
     elif(sectionType == 'public_transport'):
         sectionCommercialMode = section['display_informations']['commercial_mode']
@@ -171,11 +171,11 @@ def parseDistance(journeyValues, section):
         elif(sectionCommercialMode == 'Bus'):
             journeyValues['bus']['distance'] += sectionLength
         else:
-            print('parseDistance - Unknown commercial mode : ' + sectionCommercialMode)
+            logging.error('Unknown commercial mode : ' + sectionCommercialMode)
             
     else:
         if (sectionType != 'park' and sectionType != 'waiting'):
-            print('parseDistance - type inconnu : ' + sectionType)
+            logging.error('Unknown type : ' + sectionType)
 
 def getCoords(section, key):
     sectionEmbeddedType = section[key]['embedded_type']
@@ -189,7 +189,7 @@ def getCoords(section, key):
         return (coords['lat'], coords['lon'])
 
     else:
-        print('sectionEmbeddedType inconnu : ' + sectionEmbeddedType)
+        logging.error('Unknown sectionEmbeddedType : ' + sectionEmbeddedType)
         return (0,0)
 
 def parseNbTransit(journeyValues, section):
@@ -204,16 +204,16 @@ def parseNbTransit(journeyValues, section):
         elif(sectionCommercialMode == 'Bus'):
             journeyValues['bus']['nbTransit'] += 1
         else:
-            print('parseNbTransit - Unknown commercial mode : ' + sectionCommercialMode)
+            logging.error('Unknown commercial mode : ' + sectionCommercialMode)
 
     elif (sectionType == 'crow_fly'):
         if not(section['mode'] == 'car' or section['mode'] == 'walking'):
-            print('parseNbTransit - crow_fly : ' + section['mode'])
+            logging.error('Unknow mode with row_fly : ' + section['mode'])
             
     else:
         if (sectionType != 'park' and sectionType != 'waiting'
             and sectionType != 'street_network' and sectionType != 'transfer'):
-            print('parseNbTransit - type inconnu : ' + sectionType)
+            logging.error('Unknown type : ' + sectionType)
 
 def parseNbJourney(journeyValues, section):
     sectionType = section['type']
@@ -224,14 +224,14 @@ def parseNbJourney(journeyValues, section):
         if (sectionMode == 'walking' or sectionMode == 'car'):
             journeyValues[sectionMode]['nbJourney'] = 1
         else:
-            print('parseNbJourney - mode inconnu : ' + sectionMode)
+            logging.error('Unknown mode : ' + sectionMode)
 
     elif (sectionType == 'transfer'):
         sectionTransferType = section['transfer_type']
         if (sectionTransferType == 'walking' or sectionTransferType == 'car'):
             journeyValues[sectionTransferType]['nbJourney'] = 1
         else:
-            print('parseNbJourney - mode inconnu : ' + sectionTransferType)
+            logging.error('Unknown mode : ' + sectionTransferType)
 
     elif(sectionType == 'public_transport'):
         sectionCommercialMode = section['display_informations']['commercial_mode']
@@ -242,11 +242,11 @@ def parseNbJourney(journeyValues, section):
         elif(sectionCommercialMode == 'Bus'):
             journeyValues['bus']['nbJourney'] = 1
         else:
-            print('parseNbJourney - Unknown commercial mode : ' + sectionCommercialMode)
+            logging.error('Unknown commercial mode : ' + sectionCommercialMode)
             
     else:
         if (sectionType != 'park' and sectionType != 'waiting'):
-            print('parseNbJourney - type inconnu : ' + sectionType)
+            logging.error('Unknown type : ' + sectionType)
 
 def pivotTable(tempcsvFilePath, outputDirectory, outputFileName):
     df = pd.read_csv(tempcsvFilePath)
