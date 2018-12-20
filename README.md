@@ -25,4 +25,4 @@ It will then write 3 csv files :
 
 The command to use it is :
 
-python ResponseParser.py -i inputDirectory -o /app/navitiaStatistics/data/statistics/BP -f coverage
+python ResponseParser.py -i inputDirectory -o outputDirectory -f coverage
