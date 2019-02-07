@@ -144,7 +144,7 @@ def parseResponse(args):
                         legDestCoords = getCoords(leg, "from", index)
                         x_legDest = legDestCoords[1]
                         y_legDest = legDestCoords[0]
-                        transitLeg = isTransitLeg(legMode)
+                        transitLeg = isTransitLeg(legType)
 
                         if 'display_informations' in leg:
                             route = leg["display_informations"]["name"].encode('utf-8')
@@ -303,11 +303,24 @@ def getLegMode(leg):
     legType = leg['type']
 
     if(legType == 'street_network' or legType == 'crow_fly'):
-        return leg['mode']
-    elif (legType == 'transfer'):
-        return leg['transfer_type']
-    elif(legType == 'public_transport' or legType == "waiting" or legType == "park"):
-        return legType
+        if leg['mode'] == "car":
+            return "CAR"
+        else:
+            return "WALK"
+    elif(legType == "waiting" or legType == 'transfer'):
+        return "WALK"
+    elif(legType == "park"):
+        return "CAR"
+
+    elif(legType == 'public_transport'):
+        legCommercialMode = leg['display_informations']['commercial_mode']
+        print(legCommercialMode)
+        if(legCommercialMode == "Rail"):
+            return "RAIL"
+        elif(legCommercialMode == "Subway, Metro"):
+            return "SUBWAY"
+        elif(legCommercialMode == 'Bus'):
+            return "BUS"
     else:
         return None
 
